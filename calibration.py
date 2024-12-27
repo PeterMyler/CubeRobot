@@ -5,7 +5,10 @@ import twophase.solver as sv  # to solve the cube
 import magiccube  # to virtually execute moves
 from magiccube.cube_base import Face
 from cubescrambler import scrambler333  # to get a random scramble
-from keyboard import is_pressed, wait
+import cv2
+from numpy import sum as npsum
+from fractions import Fraction
+from time import time, sleep
 # cube = 'wowgybwyogygybyoggrowbrgywrborwggybrbwororbwborgowryby'
 # cube = "oyygwwborgrggrwwboywwrgygrrrybyywbogborrogyoyobwgbbwbo"
 # cubestring = 'DUUBULDBFRBFRRULLLBRDFFFBLURDBFDFDRFRULBLUFDURRBLBDUDL'
@@ -107,7 +110,6 @@ for i in range(10):
     print(scramble)
 
     mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
-
     vCube = scrambleCube(scramble)
 
 
