@@ -14,7 +14,7 @@ faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
 colToFace = {"w": "U", "y": "D", "o": "L", "r": "R", "g": "F", "b": "B"}
 
 # connect to arduino
-arduino = serial.Serial(port='COM9', baudrate=9600, timeout=.1)
+arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
 while not arduino.readline(): pass
 print("Arduino ready.")
 
@@ -74,11 +74,11 @@ def arduinoWriteRead(x):
     return data.decode('utf-8').strip()
 
 
-scramble = "R2 F2 D2 R' D L2 F R F2 R2 D2 R' F2 D2 F2 R B2 L' B2"  # scramble to solve
-scramble = getRandomScramble()
+scramble = "B L' F' L2 F' L' D' R2 L F B L2 F2 U2 B U L R F' U2 F2 U2 R U' L'"  # scramble to solve
+# scramble = getRandomScramble()
 print(scramble)
 vCube = scrambleCube(scramble)  # scramble the virtual cube (used for solving alg)
-arduinoWriteRead("400 50")  # send motor delay params; min = (340 0)
+arduinoWriteRead("340 0")  # send motor delay params; min = (340 0)
 arduinoWriteRead(scramble)  # scramble the real cube
 print("done scrambling")
 
@@ -87,5 +87,4 @@ input("Waiting for input to start solve: ")  # wait for user
 solve = twophaseToNormal(sv.solve(vCube, 0, 0.1))  # solve the virtual cube (max time = 0.1 sec)
 print(solve)
 print(arduinoWriteRead(solve))  # send moves to arduino
-
 

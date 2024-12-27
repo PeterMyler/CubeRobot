@@ -1,7 +1,6 @@
 import random
-import serial  # to communicate with arduino
-import time
-import twophase.solver as sv  # to solve the cube
+import serial
+# import twophase.solver as sv  # to solve the cube
 import magiccube  # to virtually execute moves
 from magiccube.cube_base import Face
 from cubescrambler import scrambler333  # to get a random scramble
@@ -43,7 +42,7 @@ print(f"Aspect ratio: {Fraction(x/y).limit_denominator()} ({x/y})")
 #################################################################
 
 # connect to arduino
-arduino = serial.Serial(port='COM9', baudrate=9600, timeout=.1)
+arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
 while not arduino.readline(): pass
 print("Arduino ready.")
 
@@ -102,23 +101,72 @@ def arduinoWriteRead(x):
     while not (data := arduino.readline()): pass
     return data.decode('utf-8').strip()
 
+#################################################################
+
+def drawSquares(img, coords, size):
+    i = 0
+    for x, y in coords:
+        img = cv2.rectangle(img, (x-size, y-size), (x+size, y+size), (128, 0, 128), 1)
+        img = cv2.putText(img, f"{i}", (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, 2)
+        i += 1
+    return img
+
+def readAvgRGB(img, coords, size):
+    res = []
+    for x, y in coords:
+        area = img[y-size:y+size+1, x-size:x+size+1]
+        average_colour = tuple(int(npsum(area[:, :, k]) // ((size*2+1)**2)) for k in range(3))
+        res.append(average_colour)
+
+    return res
+
+def camera_func():
+    # Capture frame
+    ret, frame = cap.read()
+    frame = cv2.rotate(frame, cv2.ROTATE_180)  # flip image upsidedown
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to rgb
+
+    # cv2.imshow('camera feed before contrast change', cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+    cv2.normalize(frame, frame, 0, 1100, cv2.NORM_MINMAX)  # change image contrast
+    RBG_values_ = readAvgRGB(frame, bottom_camera, 10)  # draw squares
+    frame = drawSquares(frame, bottom_camera, 10)  # draw squares
+
+    # Display the resulting frame
+    cv2.imshow('camera feed', cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+    if cv2.waitKey(1) & 0xFF == ord('q') or cv2.getWindowProperty('camera feed', cv2.WND_PROP_VISIBLE) < 1:
+        # release camera
+        cap.release()
+        cv2.destroyAllWindows()
+        exit()
+
+    return RBG_values_
+
 
 arduinoWriteRead("450 100")  # send motor delay params
 
+mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))  # create virtual magic cube
+colours = [[], [], [], [], [], []]  # RGB - white, red, green, yellow, orange, blue
 for i in range(10):
     scramble = getRandomScramble()
     print(scramble)
 
-    mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
-    vCube = scrambleCube(scramble)
+    mc.rotate(scramble)  # execute scramble in magic cube
+    cubeString = magiccubeToTwoPhase(mc)  # convert magic cube to TwoPhaseSolver's virtual cube
 
-
-
-    arduinoWriteRead(scramble)  # scramble the real cube
-
+    print(arduinoWriteRead(scramble))  # scramble the real cube
     sleep(0.5)
     print("done scrambling")
 
-    # read camera values
+    # camera
+    RBG_values = camera_func()
+    camera_to_tph = [42, 43, 44, 39, 41, 37, 38, 24, 25, 26, 21, 23, 18, 19, 33, 30, 27, 28, 29, 34, 32]
+    for col in range(21):
+        actual_colour = faceToCol[cubeString[camera_to_tph[col]]]
+        colours["wrgyob".find(actual_colour)].append(RBG_values[col])
 
+    print(*colours, sep="\n")
+
+input()
 
