@@ -13,13 +13,39 @@ from keyboard import is_pressed, wait
 faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
 colToFace = {"w": "U", "y": "D", "o": "L", "r": "R", "g": "F", "b": "B"}
 
+#################################################################
+# setup camera
+# RGB - white, red, green, yellow, orange, blue
+ideal_colour_values = [(255, 255, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (255, 128, 0), (0, 0, 255)]
+colour_values = [(121, 200, 253), (128, 0, 0), (0, 166, 0), (207, 255, 0), (230, 40, 0), (0, 12, 70)]
+colour_names = ["white", "red", "green", "yellow", "orange", "blue"]
+# pixels to check: (x, y)
+bottom_camera = [(108, 350), (171, 312), (253, 260), (121, 265), (260, 163), (190, 145), (263, 90),
+                 (345, 260), (425, 306), (487, 338), (337, 162), (474, 261), (338, 90), (409, 148),
+                 (148, 418), (217, 386), (301, 341), (386, 376), (456, 410), (236, 449), (375, 443)]
+# Open the device at the ID 0
+cap = cv2.VideoCapture(0)
+# set camera resolution
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+# set exposure
+cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+cap.set(cv2.CAP_PROP_EXPOSURE, -1)
+sleep(0.5)
+# print camera info
+_, f = cap.read()
+y, x = f.shape[:2]
+print(f"Resolution: {x}x{y}")
+print(f"Aspect ratio: {Fraction(x/y).limit_denominator()} ({x/y})")
+#################################################################
+
 # connect to arduino
 arduino = serial.Serial(port='COM9', baudrate=9600, timeout=.1)
 while not arduino.readline(): pass
 print("Arduino ready.")
 
 
-def twophaseToNormal(s):
+def twophaseSolveToNormal(s):
     out = []
     if "(" in s: s = s[:s.find("(") - 1]
     for m in s.split():
@@ -42,22 +68,22 @@ def coloursToFaces(cube):
     cube = "".join(colToFace[c] for c in cube)
     return cube
 
+def magiccubeToTwoPhase(mc):
+    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(eval("Face." + col))) for col in "URFDLB")
+    mc = coloursToFaces(mc.lower())
+    return mc
 
 def scrambleCube(s):
     # executes moves on a new cube, returns cubestring for twophase
     mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
     mc.rotate(s)
-    print(mc)
-    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(eval("Face."+col))) for col in "URFDLB")
-    mc = coloursToFaces(mc.lower())
-    print(mc)
-    return mc
+
+    return magiccubeToTwoPhase(mc)
 
 
 def generateRandomScramble():
     print("Generating scramble...")
     return scrambler333.get_WCA_scramble()
-
 
 def getRandomScramble():
     f = open("scrambles.txt", "r")
@@ -74,18 +100,23 @@ def arduinoWriteRead(x):
     return data.decode('utf-8').strip()
 
 
-scramble = "R2 F2 D2 R' D L2 F R F2 R2 D2 R' F2 D2 F2 R B2 L' B2"  # scramble to solve
-scramble = getRandomScramble()
-print(scramble)
-vCube = scrambleCube(scramble)  # scramble the virtual cube (used for solving alg)
-arduinoWriteRead("400 50")  # send motor delay params; min = (340 0)
-arduinoWriteRead(scramble)  # scramble the real cube
-print("done scrambling")
+arduinoWriteRead("450 100")  # send motor delay params
 
-input("Waiting for input to start solve: ")  # wait for user
-# solve and execute
-solve = twophaseToNormal(sv.solve(vCube, 0, 0.1))  # solve the virtual cube (max time = 0.1 sec)
-print(solve)
-print(arduinoWriteRead(solve))  # send moves to arduino
+for i in range(10):
+    scramble = getRandomScramble()
+    print(scramble)
+
+    mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
+
+    vCube = scrambleCube(scramble)
+
+
+
+    arduinoWriteRead(scramble)  # scramble the real cube
+
+    sleep(0.5)
+    print("done scrambling")
+
+    # read camera values
 
 
