@@ -14,7 +14,7 @@ faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
 colToFace = {"w": "U", "y": "D", "o": "L", "r": "R", "g": "F", "b": "B"}
 
 # connect to arduino
-arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
+arduino = serial.Serial(port='COM4', baudrate=115200, timeout=.1)
 while not arduino.readline(): pass
 print("Arduino ready.")
 
@@ -74,8 +74,8 @@ def arduinoWriteRead(x):
     return data.decode('utf-8').strip()
 
 
-scramble = "B L' F' L2 F' L' D' R2 L F B L2 F2 U2 B U L R F' U2 F2 U2 R U' L'"  # scramble to solve
-# scramble = getRandomScramble()
+scramble = ""  # scramble to solve
+scramble = getRandomScramble()
 print(scramble)
 vCube = scrambleCube(scramble)  # scramble the virtual cube (used for solving alg)
 arduinoWriteRead("340 0")  # send motor delay params; min = (340 0)

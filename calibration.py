@@ -168,5 +168,7 @@ for i in range(10):
 
     print(*colours, sep="\n")
 
-input()
+print("final list:")
+for c in colours:
+    print(list(set(c)))
 
