@@ -1,36 +1,72 @@
 import cv2
-from time import sleep
-from fractions import Fraction
+import numpy as np
 
-# Open the device
-cap1 = cv2.VideoCapture(0)
-cap2 = cv2.VideoCapture(1)
-# set camera resolution
-cap1.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
-cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-# set camera resolution
-cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
-cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+# Define HSV color ranges
+# These ranges need to be calibrated for your own cube and lighting!
+color_ranges = {
+    'red1':    ((0, 100, 100), (10, 255, 255)),
+    'red2':    ((170, 100, 100), (180, 255, 255)),  # second red range
+    'orange': ((10, 100, 100), (20, 255, 255)),
+    'yellow': ((20, 100, 100), (35, 255, 255)),
+    'green':  ((40, 100, 100), (80, 255, 255)),
+    'blue':   ((100, 100, 100), (140, 255, 255)),
+    'white':  ((0, 0, 200), (180, 50, 255))  # low saturation, high value
+}
+# pixels to check: (x, y)
+bottom_camera = [(108, 350), (171, 312), (253, 260), (121, 265), (260, 163), (190, 145), (263, 90),
+                 (345, 260), (425, 306), (487, 338), (337, 162), (474, 261), (338, 90), (409, 148),
+                 (148, 418), (217, 386), (301, 341), (386, 376), (456, 410), (236, 449), (375, 443)]
 
-sleep(0.5)
+def get_color(hsv_pixel):
+    for color, (lower, upper) in color_ranges.items():
+        l = np.array(lower)
+        u = np.array(upper)
+        if np.all(hsv_pixel >= l) and np.all(hsv_pixel <= u):
+            return color.replace('1', '').replace('2', '')
+    return 'unknown'
 
-while True:
-    # Capture frame
-    ret, frame = cap1.read()
-    frame = cv2.rotate(frame, cv2.ROTATE_180)  # flip image upsidedown
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to rgb
+# Load image
+image = cv2.imread('pics\\raw_frame1.png')
+if image is None:
+    raise ValueError("Image not found!")
 
-    cv2.imshow('camera feed 1', cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+# Convert to HSV
+hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    ret, frame = cap2.read()
-    frame = cv2.rotate(frame, cv2.ROTATE_180)  # flip image upsidedown
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to rgb
+# Optionally normalize lighting
+h, s, v = cv2.split(hsv)
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+v = clahe.apply(v)
+hsv = cv2.merge((h, s, v))
 
-    cv2.imshow('camera feed 2', cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+# Grid size
+cell_height = 10
+cell_width = 10
 
-    if cv2.waitKey(1) & 0xFF == ord('q') or cv2.getWindowProperty('camera feed 1', cv2.WND_PROP_VISIBLE) < 1:
-        # release camera
-        cap1.release()
-        cap2.release()
-        cv2.destroyAllWindows()
-        exit()
+# Output image for visualization
+output = image.copy()
+
+for ind, (row, col) in enumerate(bottom_camera):
+    # Center of each patch
+    center_x = col
+    center_y = row
+
+    # Get small patch around center
+    patch = hsv[center_y-cell_height//2:center_y+cell_height//2, center_x-cell_width//2:center_x+cell_width//2]
+    patch = patch.reshape(-1, 3)
+    median_hsv = np.median(patch, axis=0)
+
+    color = get_color(median_hsv)
+
+    # Draw detected color name
+    cv2.putText(output, color, (center_x-20, center_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2)
+    # Optionally draw rectangle around patch
+    cv2.rectangle(output, (center_y-cell_height//2, center_x-cell_width//2), (center_y+cell_height//2,  center_x+cell_width//2), (255, 255, 255), 1)
+
+    print(f"{ind}) Pos: {(col, row)}; HSV: {median_hsv}; Colour: {color}")
+
+# Show results
+cv2.imwrite("current_image.png", output)
+cv2.imshow('Detected Colors', output)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
