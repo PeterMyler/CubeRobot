@@ -19,22 +19,27 @@ bottom_camera = [(108, 350), (171, 312), (253, 260), (115, 265), (260, 160), (19
                  (345, 260), (425, 306), (485, 337), (337, 162), (470, 261), (333, 90), (409, 153),
                  (148, 418), (217, 380), (301, 335), (386, 376), (456, 410), (236, 449), (375, 443)]
 
-# Open the device at the ID 0
-cap = cv2.VideoCapture(0)
-# set camera resolution
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-# set exposure
-cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
-cap.set(cv2.CAP_PROP_EXPOSURE, -1)
+def connectCamera(id_ = 0):
+    # Open the device at the ID
+    cap_ = cv2.VideoCapture(id_, cv2.CAP_DSHOW)
+    # set camera resolution
+    cap_.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
+    cap_.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    # set exposure
+    # cap_.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+    cap_.set(cv2.CAP_PROP_EXPOSURE, -1)
+    # cap_.set(cv2.CAP_PROP_AUTO_WB, -1)
+    # set latency
+    cap_.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    sleep(0.5)
+    return cap_
 
-sleep(0.5)
-
+cap = connectCamera(0)
 # print camera info
-_, f = cap.read()
-y, x = f.shape[:2]
-print(f"Resolution: {x}x{y}")
-print(f"Aspect ratio: {Fraction(x/y).limit_denominator()} ({x/y})")
+# _, f = cap.read()
+# y, x = f.shape[:2]
+# print(f"Resolution: {x}x{y}")
+# print(f"Aspect ratio: {Fraction(x/y).limit_denominator()}")
 
 
 def getClosestRGB(given_colour, colours_to_match):
@@ -59,21 +64,17 @@ def drawSquares(img, coords, size):
         average_colour = tuple(int(npsum(area[:, :, k]) // ((size*2+1)**2)) for k in range(3))
         curr_colour = getClosestRGB(average_colour, colour_values)
 
-        # if curr_colour == 4 or curr_colour == 1:
-        #     curr_colour = 1 if abs(average_colour[1] - average_colour[2]) / 255 < 0.07 else 4
-        #     if average_colour[0] > 250: curr_colour = 1 if average_colour[1] < 35 else 4
-        #     if 190 < average_colour[0] < 210 and 15 < average_colour[1] < 25 and average_colour[2] < 4: curr_colour = 4
-        #     if average_colour[0] < 190: curr_colour = 1 if average_colour[1] < 10 else 4
-        #
-        # if average_colour[0] == average_colour[2] == 0 and average_colour[1] > 35: curr_colour = 2
-        # if curr_colour == 0 and average_colour[0] < 90: curr_colour = 5
-        # if all(c > 50 for c in average_colour): curr_colour = 0
+        # if orange or red, correct based on green value
+        if curr_colour == 4 or curr_colour == 1:
+            curr_colour = 4 if average_colour[1] > 10 else 1
 
-        # print(i, average_colour)
+        # if blue - make sure Red value is low
+        if curr_colour == 5 and average_colour[0] > 5:
+            curr_colour = 0
 
         img = cv2.rectangle(img, (x-size, y-size), (x+size, y+size), (128, 0, 128), 1)
-        img = cv2.putText(img, f"{i}", (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                          ideal_colour_values[curr_colour], 2, 2)
+        img = cv2.putText(img, f"{average_colour}", (x+10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                          ideal_colour_values[curr_colour], 1, 2)
 
         i += 1
     return img
@@ -87,10 +88,14 @@ def readAvgRGB(img, coords, size):
 
     return res
 
-
 def camera_func():
     # Capture frame
     ret, frame = cap.read()
+
+    if not ret or frame is None:
+        print("Failed to grab frame")
+        return
+
     frame = cv2.rotate(frame, cv2.ROTATE_180)  # flip image upsidedown
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # convert to rgb
 
@@ -111,6 +116,7 @@ def camera_func():
 
 while True:
     camera_func()
+    # input()
 
 
 

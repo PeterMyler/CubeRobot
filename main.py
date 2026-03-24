@@ -1,6 +1,7 @@
 import random
 import serial  # to communicate with arduino
 import time
+from time import process_time
 import twophase.solver as sv  # to solve the cube
 import magiccube  # to virtually execute moves
 from magiccube.cube_base import Face
@@ -14,7 +15,7 @@ faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
 colToFace = {"w": "U", "y": "D", "o": "L", "r": "R", "g": "F", "b": "B"}
 
 # connect to arduino
-arduino = serial.Serial(port='COM4', baudrate=115200, timeout=.1)
+arduino = serial.Serial(port='COM5', baudrate=115200, timeout=.1)
 while not arduino.readline(): pass
 print("Arduino ready.")
 
@@ -74,12 +75,12 @@ def arduinoWriteRead(x):
     return data.decode('utf-8').strip()
 
 
-scramble = ""  # scramble to solve
-scramble = getRandomScramble()
+scramble = r"D2 B' U' D' R D' R B2 D' B U' D2 L D' L F2 L2 B D L F2 L F R2 U2 U' F B' R2 D2 L2 R2 U' L2 U' R B2 D' B2 L U2 D2 B2 D' L F' D2 B' D2 R R' L D L D' B' U2 F' R F D' L2 D' R2 D' B' U' B2 R' D B2 D L2 D' R R2 L2 B2 D2 L2 D2 L U2 B L2 F2 R2 U2 R2 D' R' L2 B F' L F U D' F2 R F' L B' R L F2 U B' D2 L2 U F2 R D L U' L2 F L2 U' D2 B' F D2 L'"
+# scramble = getRandomScramble()
 print(scramble)
 vCube = scrambleCube(scramble)  # scramble the virtual cube (used for solving alg)
-arduinoWriteRead("340 0")  # send motor delay params; min = (340 0)
-arduinoWriteRead(scramble)  # scramble the real cube
+arduinoWriteRead("450 50")  # send motor delay params; min = (340 0)
+# arduinoWriteRead(scramble)  # scramble the real cube
 print("done scrambling")
 
 input("Waiting for input to start solve: ")  # wait for user
