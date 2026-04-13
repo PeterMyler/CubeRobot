@@ -1,28 +1,24 @@
-import math
 import cv2
-import numpy as np
 import customtkinter as ctk
-from PIL import Image, ImageTk
-from time import sleep, time
+from PIL import Image
+import Camera  # import custom camera script
+import Cube  # import custom cube script
+from time import process_time, sleep
 
-# define constants
-COLOUR_HUE_RANGES = (0, 3, 25, 50, 85, 160, 181)
-#                 0       1         2         3       4        5
-COLOUR_NAMES = ["red", "orange", "yellow", "green", "blue", "white"]
-RGB_COLOUR_VALUES = ((255, 0, 0), (255, 128, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))
-BOX_SIZE = 5
-BOX_COLOUR = (38, 247, 253)
+def connect_to_cameras(b_id: int, t_id: int, b_label: ctk.CTkLabel, t_label: ctk.CTkLabel):
+    # Bottom camera
+    camB = Camera.Camera(b_id, flip_upsidedown=True, name="Bottom", box_coords="camB_boxes.txt")
+    camB.label = b_label
+    camB.hidden_corner_indexes = ((18, 9), (12, 6), (0, 14))
+    camB.hidden_corner_text_coords = ((530, 400), (300, 20), (20, 420))
+    # Top camera
+    camT = Camera.Camera(t_id, name="Top", box_coords="camT_boxes.txt")
+    camT.label = t_label
+    camT.hidden_corner_indexes = ((7, 4), (20, 13), (1, 14))
+    camT.hidden_corner_text_coords = ((20, 40), (550, 40), (300, 465))
 
-# corner piece colours in order of top, right, front
-CORNER_COLOURS = ((5, 4, 0), (5, 0, 3), (5, 3, 1), (5, 1, 4), (2, 4, 1), (2, 1, 3), (2, 3, 0), (2, 0, 4))
+    return camB, camT
 
-# read box pixel coordinates for top and bottom cameras
-with open("camB_boxes.txt", "r") as f:
-    camB_boxes = [list(map(int, l.split())) for l in f.readlines()]
-    f.close()
-with open("camT_boxes.txt", "r") as f:
-    camT_boxes = [list(map(int, l.split())) for l in f.readlines()]
-    f.close()
 
 
 # main GUI app
@@ -34,16 +30,18 @@ class App(ctk.CTk):
 
         # init variables
         self.mouse_held = False
-        self.camera_delay = 1  # in ms
+        self.camera_delay = 33  # in ms
+        self.show_colour_info = ctk.BooleanVar(value=False)
+        self.camera_scale = 0.7
 
+        # ---- Define GUI layout ----
         # Header
         # self.label = ctk.CTkLabel(self, text="e", )
         # self.label.pack(expand=True, fill="both")
-
-        # Main camera frame
+        # main camera frame
         self.camera_frame = ctk.CTkFrame(self)
         self.camera_frame.pack(side="right", fill="both")
-        # ---- Top Camera ----
+        # Top Camera
         self.top_container = ctk.CTkFrame(self.camera_frame, width=500)
         self.top_container.pack(expand=True, fill="both")
         self.top_frame = ctk.CTkFrame(self.top_container)
@@ -52,7 +50,7 @@ class App(ctk.CTk):
         self.top_title.pack(pady=(0, 2))
         self.top_camera_label = ctk.CTkLabel(self.top_frame, text="")
         self.top_camera_label.pack()
-        # ---- Bottom Camera ----
+        # Bottom Camera
         self.bottom_container = ctk.CTkFrame(self.camera_frame)
         self.bottom_container.pack(expand=True, fill="both")
         self.bottom_frame = ctk.CTkFrame(self.bottom_container)
@@ -61,205 +59,208 @@ class App(ctk.CTk):
         self.bottom_title.pack(pady=(0, 2))
         self.bottom_camera_label = ctk.CTkLabel(self.bottom_frame, text="")
         self.bottom_camera_label.pack()
-
         # bind mouse left click to move boxes
         self.bottom_camera_label.bind("<ButtonPress-1>", lambda e: self.set_mouse(True))
         self.bottom_camera_label.bind("<ButtonRelease-1>", lambda e: self.set_mouse(False))
         self.bottom_camera_label.bind("<Button-1>", lambda e: self.cam_clicked(e, "Bottom"))
-
         self.top_camera_label.bind("<ButtonPress-1>", lambda e: self.set_mouse(True))
         self.top_camera_label.bind("<ButtonRelease-1>", lambda e: self.set_mouse(False))
         self.top_camera_label.bind("<Button-1>", lambda e: self.cam_clicked(e, "Top"))
 
-
         # Buttons
+        # frames
         self.controls_frame = ctk.CTkFrame(self)
         self.controls_frame.pack(side="left", fill="both", expand=True)
         self.inner_frame = ctk.CTkFrame(self.controls_frame)
         self.inner_frame.place(relx=0.5, rely=0, anchor="n")
-        self.button = ctk.CTkButton(self.inner_frame, text="Capture1", command=self.capture, width=300)
+        # swap cameras button
+        self.button = ctk.CTkButton(self.inner_frame, text="Swap cameras", command=self.swap_cameras)
         self.button.pack(pady=10, padx=10)
-        self.button1 = ctk.CTkButton(self.inner_frame, text="Capture2", command=self.capture)
+        # solve cube button
+        self.button = ctk.CTkButton(self.inner_frame, text="Solve cube", command=self.solve_cube, width=300, fg_color="orange")
+        self.button.pack(pady=10, padx=10)
+        self.button.pack(pady=10, padx=10)
+        # show colour info button
+        self.button1 = ctk.CTkSwitch(self.inner_frame, text="Show colour info", variable=self.show_colour_info, onvalue=True, offvalue=False)
         self.button1.pack(pady=10, padx=10)
+        # save box coords button
         self.button2 = ctk.CTkButton(self.inner_frame, text="Save box coords", command=self.write_box_coords)
         self.button2.pack(pady=10, padx=10)
+        # randomly scramble cube button
+        self.button2 = ctk.CTkButton(self.inner_frame, text="Randomly scramble cube", command=self.scramble_cube)
+        self.button2.pack(pady=10, padx=10)
+        # send commands to cube entry
+        self.entry = ctk.CTkEntry(self.inner_frame, width=300)
+        self.entry.pack(padx=20, pady=20)
+        self.entry.bind("<Return>", self.submit_cube_moves)
 
-        # Open camera
-        self.capB = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        self.capT = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-        # Apply camera settings
-        for cap in [self.capB, self.capT]:
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # 640x480
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            cap.set(cv2.CAP_PROP_EXPOSURE, -1)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-        # launch cameras
-        self.update_frames()
+        # ---- Create camera objects ----
+        self.camB, self.camT = connect_to_cameras(1, 0, self.bottom_camera_label, self.top_camera_label)
+
+        # launch main frame update loops
+        self.frame_update_loop(self.camB)
+        self.frame_update_loop(self.camT)
         print("Cameras launched")
 
-    def update_frames(self):
-        for cam_name, cap, camera_label, box_coords in (
-                ("Bottom", self.capB, self.bottom_camera_label, camB_boxes),
-                ("Top", self.capT, self.top_camera_label, camT_boxes)):
-
-            ret, frame = cap.read()
-
-            if ret and frame is not None:
-                # flip image upsidedown if it's the bottom camera
-                if cam_name == "Bottom": frame = cv2.rotate(frame, cv2.ROTATE_180)
-                # Convert BGR → RGB
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # change image contrast
-                cv2.normalize(frame, frame, 0, 1100, cv2.NORM_MINMAX)
-
-                # get median hsv for each piece
-                pieces_median_hsv = self.get_median_hsv(frame, box_coords)
-                # classify hsv colours
-                piece_colours = [self.classify_colour(median_hsv) for median_hsv in pieces_median_hsv]
-
-                # figure out hidden corner colours
-                if cam_name == "Bottom":
-                    corner1 = self.get_last_corner_colour(piece_colours[18], piece_colours[9])
-                    corner2 = self.get_last_corner_colour(piece_colours[12], piece_colours[6])
-                    corner3 = self.get_last_corner_colour(piece_colours[0], piece_colours[14])
-                    corners = [corner1, corner2, corner3]
-                    for i, (x, y) in enumerate(((530, 400), (300, 20), (20, 420))):
-                        if corners[i] is None: continue
-                        frame = cv2.putText(frame, f"{COLOUR_NAMES[corners[i]]}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, BOX_COLOUR, 2, 2)
-
-
-                # draw boxes
-                frame = self.draw_boxes(frame, box_coords)
-                # draw text
-                frame = self.add_text(frame, box_coords, pieces_median_hsv, piece_colours)
-
-                # display image in GUI
-                img = Image.fromarray(frame)  # Convert to PIL image
-                scale = 0.7
-                ctk_img = ctk.CTkImage(light_image=img, size=(int(img.width * scale), int(img.height * scale)))
-                camera_label.configure(image=ctk_img)
-                camera_label.image = ctk_img
-            else:
-                print("Camera frame failed")
-
-        # Call again after set delay
-        self.after(self.camera_delay, self.update_frames)
-
-    def on_close(self):
-        self.capB.release()
-        self.capT.release()
-        print("Cameras closed")
-        self.destroy()
-
-    def capture(self):
-        print("Button")
+        # ---- Connect to arduino ----
+        self.cube = Cube.Cube()
+        if self.cube is None:
+            print("Failed to create cube")
+            exit(1)
+        self.cube.arduinoWriteRead("375 20")  # configure motor speed
 
     def set_mouse(self, state):
         self.mouse_held = state
 
-    def cam_clicked(self, event, cam, best_i=None):
+    def toggle_show_colour_info(self):
+        self.show_colour_info = not self.show_colour_info
+
+    def cam_clicked(self, event, cam_name, best_i=None):
         # return if mouse 1 isn't held down anymore
         if not self.mouse_held:
             return
 
         # m_x, m_y = int(event.x/0.7), int(event.y/0.7)
-        box_coords = camT_boxes if cam == "Top" else camB_boxes
-        label = self.top_camera_label if cam == "Top" else self.bottom_camera_label
+        if cam_name == "Top":
+            curr_box_coords = self.camT.box_coords
+            curr_label = self.top_camera_label
+        else:
+            curr_box_coords = self.camB.box_coords
+            curr_label = self.bottom_camera_label
 
         # get current mouse position
-        m_x = int((label.winfo_pointerx() - label.winfo_rootx())/0.7)
-        m_y = int((label.winfo_pointery() - label.winfo_rooty())/0.7)
+        m_x = int((curr_label.winfo_pointerx() - curr_label.winfo_rootx())/self.camera_scale)
+        m_y = int((curr_label.winfo_pointery() - curr_label.winfo_rooty())/self.camera_scale)
 
         # find the closest box if it hasn't been provided
         if best_i is None:
             best_dist = 10000
             best_i = None
-            for i, box in enumerate(box_coords):
+            for i, box in enumerate(curr_box_coords):
                 curr_dist = abs(m_x - box[0]) + abs(m_y - box[1])
                 if curr_dist < best_dist:
                     best_dist = curr_dist
                     best_i = i
 
         # move box to mouse position
-        box_coords[best_i] = [m_x, m_y]
+        curr_box_coords[best_i] = [m_x, m_y]
         # run again set delay
-        self.after(self.camera_delay, lambda: self.cam_clicked(event, cam, best_i))
+        self.after(self.camera_delay, lambda: self.cam_clicked(event, cam_name, best_i))
 
+    def swap_cameras(self):
+        # swap cap variables of each camera object
+        self.camT.cap, self.camB.cap = self.camB.cap, self.camT.cap
 
     def write_box_coords(self):
         with open("camB_boxes.txt", "w") as f:
-            for box_x, box_y in camB_boxes:
+            for box_x, box_y in self.camB.box_coords:
                 f.write(f"{box_x} {box_y}\n")
             f.close()
 
         with open("camT_boxes.txt", "w") as f:
-            for box_x, box_y in camT_boxes:
+            for box_x, box_y in self.camT.box_coords:
                 f.write(f"{box_x} {box_y}\n")
             f.close()
 
         print("Box coords saved.")
 
-    def classify_colour(self, given_colour):
-        h, s, v = given_colour
-
-        # white - low Saturation and high Value
-        if s < 185 and v > 90:
-            return 5
-
-        # special case to determine red or orange for low hue
-        if 1 < h < 10:
-            # red for Value bellow 140, orange for above
-            return 0 if v < 100 else 1
-
-        # determine colour (match to colour hue ranges)
-        for i in range(len(COLOUR_HUE_RANGES)-1):
-            if COLOUR_HUE_RANGES[i] <= h < COLOUR_HUE_RANGES[i+1]:
-                return i % 5  # wrap back around to red
-
-        return None
+    def submit_cube_moves(self, event=None):
+        text = self.entry.get().strip().upper()
+        text_split = text.split(" ")
+        # print(text_split)
+        # print(not text)
+        # print(len(text_split) == 2 and text_split[0].isnumeric() and text_split[1].isnumeric())
+        # print(all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in text_split])
+        if not text or not((len(text_split) == 2 and text_split[0].isnumeric() and text_split[1].isnumeric()) or
+            all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in text_split)):
+            print("Invalid command")
+            return
 
 
-    def get_median_hsv(self, img, coords, size=BOX_SIZE):
-        colours = []
-        for i, (x, y) in enumerate(coords):
-            area = img[y-size:y+size+1, x-size:x+size+1]
+        result = self.cube.arduinoWriteRead(text)
+        print(result)
+        self.entry.delete(0, "end")
 
-            # apply Gaussian blur (reduces grain)
-            area = cv2.GaussianBlur(area, (size, size), 0)
-            # convert to HSV
-            area = cv2.cvtColor(area, cv2.COLOR_RGB2HSV)
+    def scramble_cube(self):
+        scramble = self.cube.scramble_cube(True)
+        print("Cube scrambed:", scramble)
 
-            # calculate median of each value in box area
-            median_hsv = tuple(int(np.median(area[:, :, k])) for k in range(3))
-            colours.append(median_hsv)
+    def analyse_image(self, cam: Camera.Camera, frame):
+        # get median hsv for each piece
+        median_hsv_colours = cam.get_median_hsv_colours(frame)
+        # classify hsv colours
+        piece_colours = Camera.classify_hsv_colours(median_hsv_colours)
+        # figure out hidden corner colours
+        hidden_corners = cam.get_hidden_corner_colours(piece_colours)
 
-        return colours
+        return median_hsv_colours, piece_colours, hidden_corners
 
-    def draw_boxes(self, img, coords, size=BOX_SIZE):
-        for i, (x, y) in enumerate(coords):
-            img = cv2.rectangle(img, (x - size, y - size), (x + size, y + size), BOX_COLOUR, 2)
-        return img
+    def write_data_on_image(self, cam: Camera.Camera, frame, median_hsv_colours, piece_colours, hidden_corners):
+        # draw boxes on image
+        frame = cam.draw_boxes(frame)
+        # write piece colours text on image
+        frame = cam.write_colour_values(frame, median_hsv_colours, piece_colours)
+        # write hidden corner colours on image
+        for i, (x, y) in enumerate(cam.hidden_corner_text_coords):
+            if hidden_corners[i] is None: continue
+            frame = cv2.putText(frame, f"{Camera.COLOUR_NAMES[hidden_corners[i]]}", (x, y),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.75, Camera.BOX_COLOUR, 2, 2)
+        return frame
 
-    def add_text(self, img, coords, hsv_values, colours):
-        for i, (x, y) in enumerate(coords):
-            curr_colour = BOX_COLOUR if colours[i] is None else RGB_COLOUR_VALUES[colours[i]]
-            img = cv2.putText(img, f"{hsv_values[i]}", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, curr_colour, 2, 2)
-        return img
+    def frame_update_loop(self, cam: Camera.Camera):
+        frame = cam.get_frame()
+        if not frame is None:
+            # show colour info on camera frame
+            if self.show_colour_info.get():
+                median_hsv_colours, piece_colours, hidden_corners = self.analyse_image(cam, frame)
+                frame = self.write_data_on_image(cam, frame, median_hsv_colours, piece_colours, hidden_corners)
 
-    def get_last_corner_colour(self, colour1, colour2):
-        # find matching piece with matching colours in same order
-        correct_order = (colour1, colour2)
-        for corner in CORNER_COLOURS:
-            if corner[0:2] == correct_order:
-                return corner[2]
-            elif corner[1:3] == correct_order:
-                return corner[0]
-            elif (corner[2], corner[0]) == correct_order:
-                return corner[1]
-        return None
+            # display image in GUI
+            img = Image.fromarray(frame)
+            ctk_img = ctk.CTkImage(light_image=img, size=(int(img.width * self.camera_scale),
+                                                          int(img.height * self.camera_scale)))
+            cam.label.configure(image=ctk_img)
+            cam.label.image = ctk_img
+        else:
+            print("Camera frame failed")
+
+        # Call again after set delay
+        self.after(self.camera_delay, lambda: self.frame_update_loop(cam))
+
+    def solve_cube(self):
+        B_frame = self.camB.get_frame()
+        T_frame = self.camT.get_frame()
+        if B_frame is None or T_frame is None:
+            print("Camera frame failed")
+            return
+
+        # get colour data from camera frames
+        B_data = self.analyse_image(self.camB, B_frame)
+        T_data = self.analyse_image(self.camT, T_frame)
+
+        self.cube.set_cubestate(B_data[1], B_data[2], T_data[1], T_data[2])
+        solve = self.cube.solve_cube()
+        if solve:
+            print("Solve:", solve)
+            t = process_time()
+            result = self.cube.arduinoWriteRead(solve)
+            print("Solve time:", round(process_time() - t, 4))
+            print(result)
+
+    def on_close(self):
+        # release & delete cameras
+        self.camB.release()
+        self.camT.release()
+        print("Cameras disconnected")
+        # release & delete arduino cube
+        self.cube.release()
+        print("Arduino disconnected")
+        # destroy GUI app
+        self.destroy()
 
 
-app = App()
-app.protocol("WM_DELETE_WINDOW", app.on_close)
-app.mainloop()
+if __name__ == "__main__":
+    app = App()
+    app.protocol("WM_DELETE_WINDOW", app.on_close)
+    app.mainloop()

@@ -94,7 +94,7 @@ def generateRandomScramble():
     return scrambler333.get_WCA_scramble()
 
 def getRandomScramble():
-    f = open("scrambles.txt", "r")
+    f = open("../scrambles.txt", "r")
     scrambles_ = f.readlines()
     f.close()
     s_ = scrambles_[random.randint(0, len(scrambles_)-1)]
