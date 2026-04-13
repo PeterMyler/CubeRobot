@@ -168,10 +168,6 @@ class App(ctk.CTk):
     def submit_cube_moves(self, event=None):
         text = self.entry.get().strip().upper()
         text_split = text.split(" ")
-        # print(text_split)
-        # print(not text)
-        # print(len(text_split) == 2 and text_split[0].isnumeric() and text_split[1].isnumeric())
-        # print(all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in text_split])
         if not text or not((len(text_split) == 2 and text_split[0].isnumeric() and text_split[1].isnumeric()) or
             all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in text_split)):
             print("Invalid command")
