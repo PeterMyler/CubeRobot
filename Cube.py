@@ -2,8 +2,9 @@ import random
 import serial  # to communicate with arduino
 import twophase.solver as sv  # to solve the cube
 import magiccube  # to virtually execute moves
+from magiccube.cube_base import Face
 from cubescrambler import scrambler333  # to get a random scramble
-from time import process_time
+from time import process_time, sleep
 
 # dicts to convert between cube formats
 faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
@@ -66,11 +67,9 @@ def scrambleCube(s):
     print(mc)
     return mc
 
-
 def generateRandomScramble():
     print("Generating random scramble...")
     return scrambler333.get_WCA_scramble()
-
 
 def getRandomScramble():
     f = open("scrambles.txt", "r")
@@ -79,11 +78,40 @@ def getRandomScramble():
     s_ = scrambles_[random.randint(0, len(scrambles_)-1)]
     return s_.strip()
 
+def get_random_move(double_moves=False):
+    main_move = random.choice(["U", "D", "L", "R", "F", "B"])
+    modifier = random.choice(["", "\'", "2"] if double_moves else ["", "\'"])
+    return main_move + modifier
+
+def convert_cam_data_to_cubestate(camB_colours, camB_hidden_colours, camT_colours, camT_hidden_colours):
+    colours_map = "RLDFBU"
+    cubestate = [""] * 54
+    # map colour data from camera to cube string indexes
+    for col, conv in zip(camB_colours, camB_conv):
+        cubestate[conv] = colours_map[col]
+    for col, conv in zip(camB_hidden_colours, camB_hidden_conv):
+        cubestate[conv] = colours_map[col]
+    for col, conv in zip(camT_colours, camT_conv):
+        cubestate[conv] = colours_map[col]
+    for col, conv in zip(camT_hidden_colours, camT_hidden_conv):
+        cubestate[conv] = colours_map[col]
+    # map centres
+    for col, conv in enumerate(centres_conv):
+        cubestate[conv] = colours_map[col]
+
+    cubestate = "".join(cubestate)
+    return cubestate
+
+def magiccubeToTwoPhase(mc):
+    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(eval("Face." + col))) for col in "URFDLB")
+    mc = coloursToFaces(mc.lower())
+    return mc
 
 class Cube:
     def __init__(self):
         self.state = None
         self.arduino = connect_to_arduino()
+        sleep(1)
         self.arduinoWriteRead("450 50")  # set default motor speed
 
     def arduinoWriteRead(self, command):
@@ -93,38 +121,21 @@ class Cube:
         return data.decode('utf-8').strip()
 
     def set_cubestate(self, camB_colours, camB_hidden_colours, camT_colours, camT_hidden_colours):
-        # colours_map = "ROYGBW"
-        colours_map = "RLDFBU"
-        cubestate = [""] * 54
-        # map colour data from camera to cube string indexes
-        for col, conv in zip(camB_colours, camB_conv):
-            cubestate[conv] = colours_map[col]
-        for col, conv in zip(camB_hidden_colours, camB_hidden_conv):
-            cubestate[conv] = colours_map[col]
-        for col, conv in zip(camT_colours, camT_conv):
-            cubestate[conv] = colours_map[col]
-        for col, conv in zip(camT_hidden_colours, camT_hidden_conv):
-            cubestate[conv] = colours_map[col]
-        # map centres
-        for col, conv in enumerate(centres_conv):
-            cubestate[conv] = colours_map[col]
-
-        cubestate = "".join(cubestate)
-        self.state = cubestate
-        print(cubestate)
+        self.state = convert_cam_data_to_cubestate(camB_colours, camB_hidden_colours, camT_colours, camT_hidden_colours)
+        return self.state
 
     def solve_cube(self):
         return twophaseToNormal(sv.solve(self.state, 0, 0.1))
 
-    def scramble_cube(self, use_precalculated=True):
-        if use_precalculated:
-            scramble = getRandomScramble()
-            print("Used precalculated scramble")
-        else:
-            scramble = generateRandomScramble()
-
-        self.arduinoWriteRead(scramble)
-        return scramble
+    # def scramble_cube(self, use_precalculated=True):
+    #     if use_precalculated:
+    #         scramble = getRandomScramble()
+    #         print("Used precalculated scramble")
+    #     else:
+    #         scramble = generateRandomScramble()
+    #
+    #     self.arduinoWriteRead(scramble)
+    #     return scramble
 
     def release(self):
         self.arduino.close()

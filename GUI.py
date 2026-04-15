@@ -1,9 +1,13 @@
 import cv2
-import customtkinter as ctk
+import threading
 from PIL import Image
+import customtkinter as ctk
+import twophase.solver as sv  # to solve the cube
+import magiccube  # to virtually represent a cube
+from time import process_time, sleep
+
 import Camera  # import custom camera script
 import Cube  # import custom cube script
-from time import process_time, sleep
 
 def connect_to_cameras(b_id: int, t_id: int, b_label: ctk.CTkLabel, t_label: ctk.CTkLabel):
     # Bottom camera
@@ -19,6 +23,8 @@ def connect_to_cameras(b_id: int, t_id: int, b_label: ctk.CTkLabel, t_label: ctk
 
     return camB, camT
 
+def get_min_and_max_hsv(col):
+    return [(min(col,key=lambda l:l[n])[n], max(col,key=lambda l:l[n])[n]) for n in range(3)]
 
 
 # main GUI app
@@ -33,6 +39,7 @@ class App(ctk.CTk):
         self.camera_delay = 33  # in ms
         self.show_colour_info = ctk.BooleanVar(value=False)
         self.camera_scale = 0.7
+        self.ui_disabled = False
 
         # ---- Define GUI layout ----
         # Header
@@ -76,6 +83,9 @@ class App(ctk.CTk):
         # swap cameras button
         self.button = ctk.CTkButton(self.inner_frame, text="Swap cameras", command=self.swap_cameras)
         self.button.pack(pady=10, padx=10)
+        # hsv calibration button
+        self.button = ctk.CTkButton(self.inner_frame, text="Calibrate cameras", command=self.calibrate_colour_values)
+        self.button.pack(pady=10, padx=10)
         # solve cube button
         self.button = ctk.CTkButton(self.inner_frame, text="Solve cube", command=self.solve_cube, width=300, fg_color="orange")
         self.button.pack(pady=10, padx=10)
@@ -108,7 +118,6 @@ class App(ctk.CTk):
         if self.cube is None:
             print("Failed to create cube")
             exit(1)
-        self.cube.arduinoWriteRead("375 20")  # configure motor speed
 
     def set_mouse(self, state):
         self.mouse_held = state
@@ -117,6 +126,10 @@ class App(ctk.CTk):
         self.show_colour_info = not self.show_colour_info
 
     def cam_clicked(self, event, cam_name, best_i=None):
+        # return if ui is disabled
+        if self.ui_disabled:
+            return
+
         # return if mouse 1 isn't held down anymore
         if not self.mouse_held:
             return
@@ -152,6 +165,9 @@ class App(ctk.CTk):
         # swap cap variables of each camera object
         self.camT.cap, self.camB.cap = self.camB.cap, self.camT.cap
 
+    def disable_ui(self, val):
+        self.ui_disabled = val
+
     def write_box_coords(self):
         with open("camB_boxes.txt", "w") as f:
             for box_x, box_y in self.camB.box_coords:
@@ -165,22 +181,65 @@ class App(ctk.CTk):
 
         print("Box coords saved.")
 
+    def send_to_arduino(self, command):
+        # disable UI
+        self.disable_ui(True)
+
+        # async arduino wait
+        def wait_for_response():
+            response = self.cube.arduinoWriteRead(command)
+            self.after(0, self.on_response, response)
+
+        # create thread to wait for arduino response and then call on_response function
+        threading.Thread(target=wait_for_response, daemon=True).start()
+
+    def on_response(self, response):
+        # enable UI
+        self.disable_ui(False)
+
+        # display response
+        print(response)
+
+
     def submit_cube_moves(self, event=None):
+        # return if ui is disabled
+        if self.ui_disabled:
+            return
+
+        # get text from entry
         text = self.entry.get().strip().upper()
+        print(text)
+
+        # test text validity
         text_split = text.split(" ")
         if not text or not((len(text_split) == 2 and text_split[0].isnumeric() and text_split[1].isnumeric()) or
-            all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in text_split)):
+                all((c[0] in "UDLRFB") and (len(c) == 1 or (len(c) == 2 and c[1] in "\'2")) for c in
+                    (text_split[:-1] if text_split[-1].isnumeric() else text_split))):
             print("Invalid command")
             return
 
+        # multiply moves if last word is a number
+        if not text_split[0].isnumeric() and text_split[-1].isnumeric():
+            text = " ".join(text_split[:-1] * int(text_split[-1]))
 
-        result = self.cube.arduinoWriteRead(text)
-        print(result)
+        # delete entered text
         self.entry.delete(0, "end")
 
+        # send moves to arduino
+        self.send_to_arduino(text)
+
     def scramble_cube(self):
-        scramble = self.cube.scramble_cube(True)
-        print("Cube scrambed:", scramble)
+        # return if ui is disabled
+        if self.ui_disabled:
+            return None
+
+        # scramble = self.cube.scramble_cube(use_precalculated=True)
+        scramble = Cube.getRandomScramble()
+        print("Cube scramble:", scramble)
+
+        self.send_to_arduino(scramble)
+
+        return scramble
 
     def analyse_image(self, cam: Camera.Camera, frame):
         # get median hsv for each piece
@@ -204,6 +263,92 @@ class App(ctk.CTk):
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, Camera.BOX_COLOUR, 2, 2)
         return frame
 
+    def calibrate_colour_values(self):
+        # return if ui is disabled
+        if self.ui_disabled:
+            return
+
+        # --- cube must be in a solved state ---
+        #        low hue red, orange, yellow, green, blue, high hue red
+        hsv_colours = [set(), set(), set(), set(), set(), set()]  # to store collected colour data
+        white_colours = set()
+        # create virtual copy
+        mc = magiccube.Cube(3, "".join(c * 9 for c in "WOGRBY"))
+        # scramble physical cube
+        # scramble = self.scramble_cube()
+        # scramble virtual cube
+        # mc.rotate(scramble)
+        # do 50 random moves and get colour data after each one
+        for _ in range(10):
+            # choose a random move
+            move = Cube.get_random_move(double_moves=False)
+            # execute it virtually
+            mc.rotate(move)
+            # execute it physically
+            self.cube.arduinoWriteRead(move)
+            sleep(0.2)
+            # convert magiccube to TwoPhase index format
+            cubestring = Cube.magiccubeToTwoPhase(mc)
+            # read colour data
+            self.camB.get_frame()  # dump buffered frame
+            frame = self.camB.get_frame()
+            # Image.fromarray(frame).show()
+            camB_median_hsv_colours = self.camB.get_median_hsv_colours(frame)
+            self.camT.get_frame()  # dump buffered frame
+            frame = self.camT.get_frame()
+            # Image.fromarray(frame).show()
+            camT_median_hsv_colours = self.camT.get_median_hsv_colours(frame)
+            # convert between camera data and cube positions
+            for median_hsv_colours, conv in ((camB_median_hsv_colours, Cube.camB_conv), (camT_median_hsv_colours, Cube.camT_conv)):
+                for i in range(len(median_hsv_colours)):
+                    hsv_value = median_hsv_colours[i]
+                    actual_colour = "RLDFBU".find(cubestring[conv[i]])
+
+                    if actual_colour == 5:
+                        # if white - add it to the white ranges
+                        white_colours.add(hsv_value)
+                    elif actual_colour == 0 and hsv_value[0] > 100:
+                        # if red with a high hue - add it to the end
+                        hsv_colours[-1].add(hsv_value)
+                    else:
+                        # else - add it to the proper place
+                        hsv_colours[actual_colour].add(hsv_value)
+            # break
+
+        print(*hsv_colours, sep="\n")
+
+        # add in dummy high hue red if non were found
+        if not hsv_colours[-1]: hsv_colours[-1].add((175, 255, 100))
+        # find min and max HSV all colours
+        hsv_ranges = [get_min_and_max_hsv(col) for col in hsv_colours]
+        white_hsv_ranges = get_min_and_max_hsv(white_colours)
+        print("HSV ranges:", *hsv_ranges, sep="\n")
+        print("White HSV ranges:", white_hsv_ranges)
+        # calculate hue ranges
+        new_hue_ranges = [0]
+        for col_ind in range(1, 6):
+            # get hue in between current min and previous max
+            new_hue_ranges.append((hsv_ranges[col_ind][0][0] + hsv_ranges[col_ind-1][0][1]) // 2)
+        new_hue_ranges.append(181)  # append hue limit for high hue reds
+        print("New hue ranges:", new_hue_ranges)
+        # get white limits
+        white_s_max = white_hsv_ranges[1][1] + 5
+        white_v_min = white_hsv_ranges[2][0] - 5
+        print(f"White limits: s <= {white_s_max}  &  v >= {white_v_min}")
+        # find overlapping reds and oranges
+        reds_that_could_be_oranges = []
+        for red in hsv_colours[0]:
+            # if a red values hue is higher than the lowest oranges hue
+            if red[0] >= hsv_ranges[1][0][0]:
+                reds_that_could_be_oranges.append(red)
+        print("bad red colours:", reds_that_could_be_oranges)
+
+
+        # solve the cube
+        solve = Cube.twophaseToNormal(sv.solve(Cube.magiccubeToTwoPhase(mc), 0, 0.1))
+        print(solve)
+        self.send_to_arduino(solve)
+
     def frame_update_loop(self, cam: Camera.Camera):
         frame = cam.get_frame()
         if not frame is None:
@@ -224,25 +369,33 @@ class App(ctk.CTk):
         # Call again after set delay
         self.after(self.camera_delay, lambda: self.frame_update_loop(cam))
 
-    def solve_cube(self):
+    def get_colour_data_from_cams(self):
+        # get frame from each camera
         B_frame = self.camB.get_frame()
         T_frame = self.camT.get_frame()
         if B_frame is None or T_frame is None:
             print("Camera frame failed")
-            return
+            return None, None
 
         # get colour data from camera frames
         B_data = self.analyse_image(self.camB, B_frame)
         T_data = self.analyse_image(self.camT, T_frame)
 
+        return B_data, T_data
+
+    def solve_cube(self):
+        # return if ui is disabled
+        if self.ui_disabled:
+            return
+
+        # get colour data from camera frames
+        B_data, T_data = self.get_colour_data_from_cams()
+
         self.cube.set_cubestate(B_data[1], B_data[2], T_data[1], T_data[2])
         solve = self.cube.solve_cube()
         if solve:
             print("Solve:", solve)
-            t = process_time()
-            result = self.cube.arduinoWriteRead(solve)
-            print("Solve time:", round(process_time() - t, 4))
-            print(result)
+            self.send_to_arduino(solve)
 
     def on_close(self):
         # release & delete cameras

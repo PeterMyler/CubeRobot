@@ -76,7 +76,7 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RESOLUTION[1])
         # set exposure
         self.cap.set(cv2.CAP_PROP_EXPOSURE, CAMERA_EXPOSURE)
-        # self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)
 
         print("Connected to camera", device_id)
 
