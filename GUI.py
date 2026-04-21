@@ -10,6 +10,8 @@ from time import process_time, sleep, time
 import Camera  # custom camera script
 import Cube  # custom cube script
 
+SPEED_LIMITS = (630, 330)
+DELAY_LIMITS = (100, 0)
 ctk.set_default_color_theme("dark-blue")
 no_camera_image = Image.open("no_camera.png")
 
@@ -73,7 +75,7 @@ class App(ctk.CTk):
         self.top_camera_label.pack()
 
         # camera controls
-        self.cam_controls_container = ctk.CTkFrame(self.camera_frame, height=42, border_width=3, bg_color="#474747")
+        self.cam_controls_container = ctk.CTkFrame(self.camera_frame, height=46, border_width=3, bg_color="#474747")
         self.cam_controls_container.pack(fill="x")
         # inner frame
         self.cam_controls_inner = ctk.CTkFrame(self.cam_controls_container, fg_color="transparent")
@@ -112,41 +114,74 @@ class App(ctk.CTk):
         self.top_camera_label.bind("<ButtonRelease-3>", lambda e: self.set_right_click(False))
         self.top_camera_label.bind("<Button-3>", lambda e: self.cam_clicked(e, self.camT, "right"))
 
-        # --- Buttons ---
+
+        # --- Cube Controls ---
         self.controls_frame = ctk.CTkFrame(self)
         self.controls_frame.pack(side="left", fill="both", expand=True)
-        #
-        self.inner_frame = ctk.CTkFrame(self.controls_frame)
-        self.inner_frame.place(relx=0.5, rely=0.4, anchor="center")
+        # cube testing functions
+        self.inner_frame1 = ctk.CTkFrame(self.controls_frame, border_width=3)
+        self.inner_frame1.pack(fill="both", pady=(80, 30), padx=10)
+        self.inner_frame1_title = ctk.CTkLabel(self.inner_frame1, text="Testing functions", font=("Arial", 20, "bold"))
+        self.inner_frame1_title.pack(pady=5)
         # hsv calibration button
-        self.button = ctk.CTkButton(self.inner_frame, text="Calibration", command=self.calibrate_colour_values, border_width=2)
-        self.button.pack(pady=10, padx=10)
-        # motor speed and delay sliders
-        self.slider1 = ctk.CTkSlider(self.inner_frame, from_=600, to=330, variable=self.motor_speed, number_of_steps=27)
-        self.slider1.pack(pady=10, padx=10)
-        self.slider1.bind("<ButtonRelease-1>", self.update_motor_speeds)
-        self.slider2 = ctk.CTkSlider(self.inner_frame, from_=100, to=0, variable=self.motor_delay, number_of_steps=10)
-        self.slider2.bind("<ButtonRelease-1>", self.update_motor_speeds)
-        self.slider2.pack(pady=10, padx=10)
-        # randomly scramble cube button
-        self.button3 = ctk.CTkButton(self.inner_frame, text="Randomly scramble cube", command=self.scramble_cube)
-        self.button3.pack(pady=10, padx=10)
-        # solve cube button
-        self.button = ctk.CTkButton(self.inner_frame, text="Solve cube", command=self.solve_cube, width=300, fg_color="orange")
-        self.button.pack(pady=10, padx=10)
-        self.button.pack(pady=10, padx=10)
-        # send commands to cube entry
-        self.entry = ctk.CTkEntry(self.inner_frame, width=300)
-        self.entry.pack(padx=20, pady=20)
-        self.entry.bind("<Return>", self.submit_cube_moves)
+        self.button = ctk.CTkButton(self.inner_frame1, text="Calibrate colours", command=self.calibrate_colour_values, border_width=2)
+        self.button.pack(pady=10, padx=(30, 0), side="left")
         # tester button
-        self.button4 = ctk.CTkButton(self.inner_frame, text="Start Tester", command=self.tester)
-        self.button4.pack(pady=10, padx=10)
+        self.button4 = ctk.CTkButton(self.inner_frame1, text="Run tests", command=self.tester, border_width=2)
+        self.button4.pack(pady=10, padx=(0, 30), side="right")
+        # motor speed and delay sliders
+        self.inner_frame2 = ctk.CTkFrame(self.controls_frame, border_width=3)
+        self.inner_frame2.pack(fill="x", pady=30, padx=10)
+        self.inner_frame2_title = ctk.CTkLabel(self.inner_frame2, text="Motor values", font=("Arial", 20, "bold"))
+        self.inner_frame2_title.pack(pady=5)
+        # motor speed
+        speed_slider_frame = ctk.CTkFrame(self.inner_frame2)
+        speed_slider_frame.pack(fill="x", pady=10, padx=10)
+        speed_slider_title = ctk.CTkLabel(speed_slider_frame, text="Speed", font=("Arial", 20, "bold"))
+        speed_slider_title.pack(padx=8, pady=5, side="left")
+        self.slider1 = ctk.CTkSlider(speed_slider_frame, from_=SPEED_LIMITS[0], to=SPEED_LIMITS[1],
+                                     variable=self.motor_speed, command=self.set_motor_speed_text,
+                                     number_of_steps=20, width=180)
+        self.slider1.pack(padx=8, side="left")
+        self.speed_slider_amount = ctk.CTkLabel(speed_slider_frame, text="100%", font=("Arial", 20, "bold"))
+        self.speed_slider_amount.pack(padx=8, side="right")
+        self.set_motor_speed_text(self.motor_speed.get())
+        self.slider1.bind("<ButtonRelease-1>", self.update_motor_speeds)
+        # motor delay
+        delay_slider_frame = ctk.CTkFrame(self.inner_frame2)
+        delay_slider_frame.pack(fill="x", pady=(5, 10), padx=10)
+        delay_slider_title = ctk.CTkLabel(delay_slider_frame, text="Delay ", font=("Arial", 20, "bold"))
+        delay_slider_title.pack(padx=8, pady=5, side="left")
+        self.slider2 = ctk.CTkSlider(delay_slider_frame, from_=DELAY_LIMITS[0], to=DELAY_LIMITS[1],
+                                     variable=self.motor_delay, command=self.set_motor_delay_text,
+                                     number_of_steps=abs(DELAY_LIMITS[0]-DELAY_LIMITS[1])//10, width=180)
+        self.slider2.pack(padx=8, side="left")
+        self.delay_slider_amount = ctk.CTkLabel(delay_slider_frame, text="100ms", font=("Arial", 20, "bold"))
+        self.delay_slider_amount.pack(padx=8, side="right")
+        self.set_motor_delay_text(self.motor_delay.get())
+        self.slider2.bind("<ButtonRelease-1>", self.update_motor_speeds)
+
+        # cube actions
+        self.inner_frame3 = ctk.CTkFrame(self.controls_frame, border_width=3)
+        self.inner_frame3.pack(fill="x", pady=(30, 10), padx=10)
+        self.inner_frame3_title = ctk.CTkLabel(self.inner_frame3, text="Cube actions", font=("Arial", 20, "bold"))
+        self.inner_frame3_title.pack(pady=5)
+        # send commands to cube entry
+        self.entry = ctk.CTkEntry(self.inner_frame3, width=300, placeholder_text="Execute moves")
+        self.entry.pack(padx=10, pady=10)
+        self.entry.bind("<Return>", self.submit_cube_moves)
+        # randomly scramble cube button
+        self.button3 = ctk.CTkButton(self.inner_frame3, text="Randomly scramble", command=self.scramble_cube, width=220, border_width=2)
+        self.button3.pack(padx=10, pady=10)
+        # solve cube button
+        self.button = ctk.CTkButton(self.inner_frame3, text="Solve cube", command=self.solve_cube, height=45, width=220, fg_color="orange", hover_color="darkorange", text_color="black", border_width=2, font=("Arial", 20, "bold"))
+        self.button.pack(padx=10, pady=10)
+        self.button.pack(padx=10, pady=10)
 
         # timer
-        self.bottom_frame = ctk.CTkFrame(self.controls_frame, border_width=3)
-        self.bottom_frame.pack(side="bottom", fill="x", pady=50, padx=10)
-        self.timer_label = ctk.CTkLabel(self.bottom_frame, text=self.current_timer, font=("Arial", 64, "bold"), text_color="green")
+        self.timer_frame = ctk.CTkFrame(self.controls_frame, border_width=3)
+        self.timer_frame.pack(fill="x", pady=0, padx=10)
+        self.timer_label = ctk.CTkLabel(self.timer_frame, text=self.current_timer, font=("Arial", 80, "bold"), text_color="green")
         self.timer_label.pack(pady=10)
         self.timer_label.pack()
         self.timer_running = False
@@ -187,7 +222,15 @@ class App(ctk.CTk):
 
         self.after(1, self.update_timer)  # update every 1ms
 
-    def update_motor_speeds(self, v=None):
+    def set_motor_speed_text(self, v):
+        self.speed_slider_amount.configure(text=f"{int((SPEED_LIMITS[0] - v) / abs(SPEED_LIMITS[0]-SPEED_LIMITS[1]) * 100)}%")
+
+    def set_motor_delay_text(self, v):
+        self.delay_slider_amount.configure(text=f"{int(v)}ms")
+
+    def update_motor_speeds(self, e=None):
+        if self.cube.arduino is None: return
+
         res = self.cube.arduinoWriteRead(f"{self.motor_speed.get()} {self.motor_delay.get()}")
         print(res)
 
