@@ -4,7 +4,6 @@ import customtkinter as ctk
 import twophase.solver as sv  # to solve the cube
 import magiccube  # to virtually represent a cube
 import threading
-import json
 import cv2
 from time import process_time, sleep, time
 import Camera  # custom camera script
@@ -55,6 +54,8 @@ class App(ctk.CTk):
         self.current_timer = "0.000s"
         self.motor_speed = ctk.IntVar(value=cube_data["motor_speed"])
         self.motor_delay = ctk.IntVar(value=cube_data["motor_delay"])
+        self.entry_history = []
+        self.entry_history_index = 1
 
         # ---- Define GUI layout ----
         # Header
@@ -170,6 +171,8 @@ class App(ctk.CTk):
         self.entry = ctk.CTkEntry(self.inner_frame3, width=300, placeholder_text="Execute moves")
         self.entry.pack(padx=10, pady=10)
         self.entry.bind("<Return>", self.submit_cube_moves)
+        self.entry.bind("<Down>", lambda e: self.entry_history_lookup(1))
+        self.entry.bind("<Up>", lambda e: self.entry_history_lookup(-1))
         # randomly scramble cube button
         self.button3 = ctk.CTkButton(self.inner_frame3, text="Randomly scramble", command=self.scramble_cube, width=220, border_width=2)
         self.button3.pack(padx=10, pady=10)
@@ -357,7 +360,9 @@ class App(ctk.CTk):
 
         # get text from entry
         text = self.entry.get().strip().upper()
-        print(text)
+        self.entry_history.insert(0, text)
+        self.entry_history_index = 0
+
 
         # test text validity
         text_split = text.split(" ")
@@ -376,6 +381,22 @@ class App(ctk.CTk):
 
         # send moves to arduino
         self.send_to_arduino(text)
+
+    def entry_history_lookup(self, direction):
+        if len(self.entry_history) == 0:
+            return
+
+        self.entry_history_index += direction
+        if self.entry_history_index < 0:
+            self.entry_history_index = 0
+        elif self.entry_history_index >= len(self.entry_history)-1:
+            self.entry_history_index = len(self.entry_history) - 1
+
+        text = self.entry_history[self.entry_history_index]
+
+        self.entry.delete(0, "end")
+        self.entry.insert(0, text)
+
 
     def scramble_cube(self):
         # return if ui is disabled

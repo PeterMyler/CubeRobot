@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import json
 from time import sleep, time
 from pygrabber.dshow_graph import FilterGraph
 

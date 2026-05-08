@@ -153,6 +153,8 @@ class Cube:
             self.arduinoWriteRead("U U U U")
 
     def arduinoWriteRead(self, command):
+        if self.arduino is None: return None
+
         # sends data to arduino, waits for response, and then returns it
         self.arduino.write(bytes(command.upper(), 'utf-8'))
         while not (data := self.arduino.readline()): pass
