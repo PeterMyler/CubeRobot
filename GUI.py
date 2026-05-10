@@ -1,15 +1,16 @@
 from PIL import Image
 import numpy as np
 import customtkinter as ctk
-import twophase.solver as sv  # to solve the cube
+import twophase.solver as sv  # Kociemba's algorithm
 import magiccube  # to virtually represent a cube
 import threading
 import cv2
-from time import process_time, sleep, time
+import csv
+from time import sleep, time, monotonic
 import Camera  # custom camera script
 import Cube  # custom cube script
 
-SPEED_LIMITS = (630, 330)
+SPEED_LIMITS = (520, 320)
 DELAY_LIMITS = (100, 0)
 ctk.set_default_color_theme("dark-blue")
 no_camera_image = Image.open("no_camera.png")
@@ -142,7 +143,7 @@ class App(ctk.CTk):
         speed_slider_title.pack(padx=8, pady=5, side="left")
         self.slider1 = ctk.CTkSlider(speed_slider_frame, from_=SPEED_LIMITS[0], to=SPEED_LIMITS[1],
                                      variable=self.motor_speed, command=self.set_motor_speed_text,
-                                     number_of_steps=20, width=180)
+                                     number_of_steps=abs(SPEED_LIMITS[1]-SPEED_LIMITS[0])//10, width=180)
         self.slider1.pack(padx=8, side="left")
         self.speed_slider_amount = ctk.CTkLabel(speed_slider_frame, text="100%", font=("Arial", 20, "bold"))
         self.speed_slider_amount.pack(padx=8, side="right")
@@ -205,7 +206,7 @@ class App(ctk.CTk):
             self.update_motor_speeds()
 
     def start_timer(self):
-        self.start_time = time()
+        self.start_time = monotonic()
         self.timer_running = True
         self.update_timer()
 
@@ -216,7 +217,7 @@ class App(ctk.CTk):
         if not self.timer_running:
             return  # stop updating timer
 
-        elapsed = time() - self.start_time
+        elapsed = monotonic() - self.start_time
 
         secs = int(elapsed)
         ms = int((elapsed * 1000) % 1000)
@@ -266,7 +267,7 @@ class App(ctk.CTk):
 
     def cam_clicked(self, event, cam: Camera.Camera, mouse_button, closest_box=None, closest_vertex=None):
         # return if ui is disabled is colour data bot being shown
-        if self.ui_disabled or not self.show_colour_info:
+        if self.ui_disabled or not self.show_colour_info.get():
             return
 
         # return if mouse button isn't held down anymore
@@ -336,9 +337,14 @@ class App(ctk.CTk):
         # disable UI
         self.disable_ui(True)
 
+        # strip command
+        old_command = command
+        if "Solve: " in command:
+            command = command[command.find("Solve: ") + 7:]
+
         # async arduino wait
         def wait_for_response():
-            response = self.cube.arduinoWriteRead(command)
+            response = self.cube.arduinoWriteRead(command) + ". Command: " + old_command
             self.after(0, lambda: self.on_response(response, callback))
 
         # create thread to wait for arduino response and then call on_response function
@@ -398,7 +404,7 @@ class App(ctk.CTk):
         self.entry.insert(0, text)
 
 
-    def scramble_cube(self):
+    def scramble_cube(self, callback=None):
         # return if ui is disabled
         if self.ui_disabled:
             return None
@@ -406,7 +412,7 @@ class App(ctk.CTk):
         scramble = Cube.getRandomScramble()
         print("Cube scramble:", scramble)
 
-        self.send_to_arduino(scramble)
+        self.send_to_arduino(scramble, callback)
 
         return scramble
 
@@ -557,7 +563,7 @@ class App(ctk.CTk):
         self.send_to_arduino(solve)
 
     def frame_update_loop(self, cam: Camera.Camera):
-        frame = no_camera_image
+        frame = None
         if cam: frame = cam.get_frame()
 
         if frame is not None:
@@ -593,6 +599,11 @@ class App(ctk.CTk):
         return B_data, T_data
 
     def solve_cube(self, callback=None):
+        if self.camT.cap is None or self.camB.cap is None:
+            print("Cameras not connected")
+            if callback is not None: callback(None)
+            return None
+
         # return if ui is disabled
         if self.ui_disabled:
             return None
@@ -600,7 +611,7 @@ class App(ctk.CTk):
         # set start time
         self.start_timer()
         # attempt to solve many times
-        for attempt in range(30):
+        for attempt in range(200):
             # get colour data from camera frames
             B_data, T_data = self.get_colour_data_from_cams()
             # set cubestate
@@ -613,30 +624,121 @@ class App(ctk.CTk):
                 if callback is not None: callback(solve)
                 return solve
             elif not solve.startswith("Error"):
-                print(f"Attempt {attempt+1}. Solve:", solve)
-                self.send_to_arduino(solve, callback=callback)
+                solve_result = f"Attempt {attempt+1}. Solve: {solve}"
+                self.send_to_arduino(solve_result, callback=callback)
                 return solve
-            # sleep(attempt/500)
 
         self.stop_timer()
         print("Couldn't solve cube")
+        if callback is not None: callback(None)
         return None
 
-    def tester_received_response(self, response):
-        # write results to file
-        print("Tester results:", response)
-        print("Actual time taken", )
+    def save_test_data(self, test_doc, data):
+        with open(test_doc, "a", newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(map(str, data))
+            file.close()
 
-    def tester(self):
+    def tester(self, i = 0, limit = 100, data_file=None):
         # repeatedly scramble and solve the cube and save the data
-        # [num, scramble, solved / not solved, solution, moves, time taken]
+        if i == limit:
+            # calculate averages
+            with open(data_file, "r", newline='') as file:
+                reader = csv.DictReader(file)
+                successes = []
+                times = []
+                attempts = []
+                moves = []
+                turns = []
+                tps = []
+                for row in reader:
+                    successes.append(1 if row['Success'] == "True" else 0)
+                    if row['Success'] == "True":
+                        successes.append(1)
+                        times.append(float(row['Time']))
+                        attempts.append(int(row['Attempt']))
+                        moves.append(int(row['Moves']))
+                        turns.append(int(row['Turns']))
+                        tps.append(float(row['TPS']))
+                    else:
+                        successes.append(0)
+                file.close()
+
+            success_rate = f"{sum(successes) / len(successes) * 100:.2f}%"
+            avg_time = round(sum(times) / len(times), 3)
+            avg_attempt = round(sum(attempts) / len(attempts), 1)
+            avg_moves = round(sum(moves) / len(moves), 1)
+            avg_turns = round(sum(turns) / len(turns), 1)
+            avg_tps = round(sum(tps) / len(tps), 2)
+
+            # write averages
+            with open(data_file, "a", newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(["", "", "", success_rate, avg_time, avg_attempt, avg_moves, avg_turns, avg_tps])
+                file.close()
+
+            return
+
+        if data_file is None:
+            # create new data file
+            data_file = f"Test_data\\test_{int(time())}.csv"
+            with open(data_file, "w", newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(["Test #", "Scramble", "Solution", "Success", "Time", "Attempt", "Moves", "Turns", "TPS"])
+
+                file.close()
+
+        scramble = None
+
+        def after_scramble(scramble_response):
+            print("Scrambled:", scramble)
+            print("Scramble response:", scramble_response)
+
+            def tester_received_response(response):
+                # write results to file
+                print("Solve response:", response)
+                print("Actual time taken", self.current_timer)
+                was_solved = not(response is None or response.startswith("Error"))
+
+                def run_next_test(failed_response = None):
+                    # save results to test data file
+                    if response is not None:
+                        time_taken, moves, tps, attempt, solution = response.split(". ")
+                        time_taken = self.current_timer.rstrip("s")
+                        moves, turns = moves.lstrip("Moves: ").split()
+                        turns = turns.strip("()")
+                        tps = tps.lstrip("TPS: ")
+                        attempt = attempt.lstrip("Command: Attempt: ")
+                        solution = solution.lstrip("Solve: ")
+                    else:
+                        time_taken = moves = turns = tps = attempt = ""
+                        solution = failed_response[failed_response.find("Command: ") + 9:]
+
+                    #["Test #", "Scramble", "Solution", "Success", "Time", "Attempt", "Moves", "Turns", "TPS"]
+                    data =  [i, scramble, solution, was_solved, time_taken, attempt, moves, turns, tps]
+                    self.save_test_data(data_file, data)
+
+                    self.after(100, lambda: self.tester(i + 1, limit, data_file))
+
+                if not was_solved:
+                    # solve cube manually
+                    self.cube.state = Cube.scrambleCube(scramble)
+                    self.send_to_arduino(self.cube.solve_cube(), run_next_test)
+                else:
+                    run_next_test()
+
+            # refresh cam frames
+            self.camB.get_frame()
+            self.camT.get_frame()
+            # try to solve
+            print("Starting solve")
+            self.after(100, lambda: self.solve_cube(callback=tester_received_response))
+
 
         # randomly scramble
-        # scramble = self.scramble_cube()
-        # sleep(3)
+        scramble = self.scramble_cube(after_scramble)
 
-        # try to solve
-        self.solve_cube(callback=self.tester_received_response)
+
 
 
 

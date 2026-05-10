@@ -1,0 +1,7 @@
+Test #,Scramble,Solution,Success,Time,Attempt,Moves,Turns,TPS
+0,F' L F' B' D R' B2 L U2 R' L' F D2 R2 L' B L R2 D2 U' F L' D' F2 R2,R' B' R U' L' D2 B D' R' U D2 R L2 D2 B2 D2 B2 L,True,1.750,1,18,25,15.36
+1,U B2 F2 L U' B U' D2 B2 F' U F' L' D U R' U2 L F2 R2 D2 F U' B2 R',L2 B2 R2 B2 D B2 D2 F2 L D2 B' U2 F R2 U F L2 U' B',True,2.188,1,19,30,15.35
+2,F L' U' D L' D' R2 F D2 L' R B L2 D U2 L U2 R L' B2 F' R' B2 R' F2,U2 L2 F' L2 B2 U2 L2 U2 R' D B2 F D2 R' D U' R F' R2,True,2.125,1,19,29,15.35
+3,L' B' R' B2 L2 B' L2 R2 B U2 F B' R D2 R' F' R2 B R F' B2 D2 B2 R2 L,F R2 U2 B F' D2 B' R2 F' D2 L' R2 B' L R' F' R' B,True,1.781,1,18,24,15.36
+4,U R2 U2 R2 B2 U L' B' R L' D' R2 D U' R' B D2 U2 L2 F' R D R B D',U2 D2 B' D' F' U' R2 U' B2 R B' D B2 U' D2 L2 F2 R2 L2 D2,True,2.156,1,20,31,15.35
+,,,100.00%,2.0

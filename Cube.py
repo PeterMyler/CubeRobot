@@ -91,17 +91,6 @@ def coloursToFaces(cube):
     cube = "".join(colToFace[c] for c in cube)
     return cube
 
-
-def scrambleCube(s):
-    # executes moves on a new cube, returns cubestring for twophase
-    mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
-    mc.rotate(s)
-    print(mc)
-    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(eval("Face."+col))) for col in "URFDLB")
-    mc = coloursToFaces(mc.lower())
-    print(mc)
-    return mc
-
 def generateRandomScramble():
     print("Generating random scramble...")
     return scrambler333.get_WCA_scramble()
@@ -139,9 +128,16 @@ def convert_cam_data_to_cubestate(camB_colours, camB_hidden_colours, camT_colour
     return "".join(cubestate)
 
 def magiccubeToTwoPhase(mc):
-    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(eval("Face." + col))) for col in "URFDLB")
+    mc = "".join("".join(str(v)[-1:] for v in mc.get_face_flat(col)) for col in [Face.U, Face.R, Face.F, Face.D, Face.L, Face.B])
     mc = coloursToFaces(mc.lower())
     return mc
+
+def scrambleCube(s):
+    # executes moves on a new cube, returns cubestring for twophase
+    mc = magiccube.Cube(3, "".join(c*9 for c in "WOGRBY"))
+    mc.rotate(s)
+    cubestring = magiccubeToTwoPhase(mc)
+    return cubestring
 
 class Cube:
     def __init__(self):
@@ -169,7 +165,6 @@ class Cube:
         solve = sv.solve(self.state, 0, 0.2)
         if not solve.startswith("Error"):
             # solve success
-            print(solve)
             return twophaseToNormal(solve)
 
         # attempt to fix cube by swapping each colour with its possible error
@@ -242,5 +237,6 @@ class Cube:
     def release(self):
         self.arduino.close()
 
+
 if __name__ == "__main__":
-    print("wrong script mate")
+    print("Nope")
