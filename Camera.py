@@ -20,6 +20,7 @@ CAMERA_RESOLUTION = (640, 480)
 CAMERA_NAME = "Trust Webcam"
 CAMERA_EXPOSURE = -1
 DESIRED_CONTRAST = 2000
+
 # find available camera devices
 devices = FilterGraph().get_input_devices()
 print("Available cameras:", *enumerate(devices))

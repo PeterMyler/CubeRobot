@@ -8,6 +8,7 @@ from cubescrambler import scrambler333  # to get a random scramble
 from time import process_time, sleep
 from Camera import get_hidden_corner_colour
 
+# arduino config constants
 ARDUINO_PORT = "COM9"
 ARDUINO_BAUD_RATE = 115200
 
