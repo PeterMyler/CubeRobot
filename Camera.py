@@ -5,13 +5,13 @@ from pygrabber.dshow_graph import FilterGraph
 
 #                 0       1         2         3       4        5
 COLOUR_NAMES = ("red", "orange", "yellow", "green", "blue", "white")
-RGB_COLOUR_VALUES = ((255, 0, 0), (255, 128, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))
-BOX_SIZE = 9  # pixel radius of colour detection
+RGB_COLOUR_VALUES = ((255, 0, 0), (255, 128, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))  # ideal values
 COLOUR_HUE_RANGES = (0, 3, 23, 45, 84, 146, 181)  # (0, 3, 25, 53, 70, 160, 181)
 WHITE_LIMITS = (60, 185, 120, 75, 130)  # low max s, [max s, min v, min h, max, h]
 BAD_RED_LIMITS = (8, 130)  # max hue, max value
 BAD_GREEN_LIMITS = (40, 175)  # min hue, max v - green for Value below threshold, yellow for above
 BOX_COLOUR = (255, 0, 210)
+
 # rubiks corner-piece colours in order of top, right, front
 CORNER_COLOURS = ((5, 4, 0), (5, 0, 3), (5, 3, 1), (5, 1, 4), (2, 4, 1), (2, 1, 3), (2, 3, 0), (2, 0, 4))
 
@@ -29,7 +29,8 @@ def classify_hsv_colour(hsv_colour):
     h, s, v = hsv_colour
 
     # white - low Saturation and high Value
-    if (s <= WHITE_LIMITS[0]) or (s <= WHITE_LIMITS[1] and v >= WHITE_LIMITS[2] and WHITE_LIMITS[3] <= h <= WHITE_LIMITS[4]):
+    if (s <= WHITE_LIMITS[0]) or (s <= WHITE_LIMITS[1] and v >= WHITE_LIMITS[2]
+                                  and WHITE_LIMITS[3] <= h <= WHITE_LIMITS[4]):
         return 5
 
     # special case to determine red or orange for low hue
