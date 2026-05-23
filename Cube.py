@@ -13,7 +13,6 @@ ARDUINO_PORT = "COM9"
 ARDUINO_BAUD_RATE = 115200
 
 # dicts to convert between cube formats
-faceToCol = {"U": "w", "D": "y", "L": "o", "R": "r", "F": "g", "B": "b"}
 colToFace = {"w": "U", "y": "D", "o": "L", "r": "R", "g": "F", "b": "B"}
 colours_map = "RLDFBU"
 
@@ -84,8 +83,6 @@ def coloursToFaces(cube):
     # converts face colours to facelets used by the twophase library
     # e.g. "ygrb" -> "UBLR"
     # (assumes white is up and green is forwards)
-
-    global colToFace
     cube = [cube[x:x + 9] for x in range(0, 50, 9)]
     centers = [f[4] for f in cube]
     cube = "".join(cube[centers.index(c)] for c in "wrgyob")  # w, r, g, y, o, b
@@ -111,16 +108,16 @@ def get_random_moves(amount, double_moves=False):
         sequence.append(main_move + modifier)
     return " ".join(sequence)
 
-def convert_cam_data_to_cubestate(camB_colours, camB_hidden_colours, camT_colours, camT_hidden_colours):
+def convert_cam_data_to_cubestate(camB_c, camB_hc, camT_c, camT_hc):
     cubestate = [""] * 54
     # map colour data from camera to cube string indexes
-    for col, conv in zip(camB_colours, camB_conv):
+    for col, conv in zip(camB_c, camB_conv):
         cubestate[conv] = " " if col is None else colours_map[col]
-    for col, conv in zip(camB_hidden_colours, camB_hidden_conv):
+    for col, conv in zip(camB_hc, camB_hidden_conv):
         cubestate[conv] = " " if col is None else colours_map[col]
-    for col, conv in zip(camT_colours, camT_conv):
+    for col, conv in zip(camT_c, camT_conv):
         cubestate[conv] = " " if col is None else colours_map[col]
-    for col, conv in zip(camT_hidden_colours, camT_hidden_conv):
+    for col, conv in zip(camT_hc, camT_hidden_conv):
         cubestate[conv] = " " if col is None else colours_map[col]
     # map centres
     for col, conv in enumerate(centres_conv):
