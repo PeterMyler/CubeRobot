@@ -131,17 +131,6 @@ class Camera:
         colours = []
         hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 
-        # for x, y in self.box_coords:
-        #     # get the area around the box coord
-        #     area = hsv_img[y - size:y + size + 1, x - size:x + size + 1]
-        #     # apply Gaussian blur (reduces image grain)
-        #     area = cv2.GaussianBlur(area, (5, 5), 0)
-        #     # convert from RGB to HSV
-        #     area = cv2.cvtColor(area, cv2.COLOR_RGB2HSV)
-        #     # calculate the median of Hue, Saturation, and Value in the box area
-        #     median_hsv = tuple(int(np.median(area[:, :, k])) for k in range(3))
-        #     colours.append(median_hsv)
-
         for quad in self.box_coords:
             pts = np.array(quad)
             # get the bounding box of the quad

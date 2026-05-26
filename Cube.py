@@ -160,7 +160,7 @@ class Cube:
 
     def solve_cube(self):
         # attempt to solve
-        solve = sv.solve(self.state, 0, 0.2)
+        solve = sv.solve(self.state, 0, 0.1)
         if not solve.startswith("Error"):
             # solve success
             return twophaseToNormal(solve)
@@ -176,12 +176,6 @@ class Cube:
             new_col = old_col + (1 if old_col%2==0 else -1)  # ERROR_COLOURS[old_col]
             # swap colour
             curr_state[tp_ind] = colours_map[new_col]
-
-            # attempt to solve
-            # solve = sv.solve("".join(curr_state), 0, 0.1)
-            # if not solve.startswith("Error"):
-            #     # solve success
-            #     return twophaseToNormal(solve)
 
             # convert twophase index to camera index
             cam_ind = hidden_corner_indexes = conv = hidden_conv = None
@@ -221,16 +215,6 @@ class Cube:
         # send cubestate to solver
         solve = sv.solve(self.state, 0, 0.1)
         return twophaseToNormal(solve)
-
-    # def scramble_cube(self, use_precalculated=True):
-    #     if use_precalculated:
-    #         scramble = getRandomScramble()
-    #         print("Used precalculated scramble")
-    #     else:
-    #         scramble = generateRandomScramble()
-    #
-    #     self.arduinoWriteRead(scramble)
-    #     return scramble
 
     def release(self):
         self.arduino.close()
