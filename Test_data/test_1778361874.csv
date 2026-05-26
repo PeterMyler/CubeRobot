@@ -1,7 +1,0 @@
-Test #,Scramble,Solution,Success,Time,Attempt,Moves,Turns,TPS
-0,B' L B2 F D' R D' U R' F' B U' F2 L F2 L U' D L2 U' L U' B2 F R',R2 U F' U' R' B2 L F' R2 U' B' D L2 U' F2 R2 L2 U2 F2 B2 R2,True,2.296,5,21,32,15.36
-1,B' L F2 L' U2 F2 L R U' B D2 B' F D2 F' D' L D2 B2 D' L' U2 D' L2 B2,R2 U' R B' U2 R' U' B2 R D R L2 U F2 U R2 U L2 U L2 U,True,2.046,1,21,29,15.34
-2,F' B2 U2 F2 U2 L R2 F2 D R2 L' D2 U B' F' L2 U' F' R F' R L' F2 U2 D,F R F2 L2 D R U F' B D' F L' B' R2 B' D2 F U2 D2 B' L2,True,2.094,1,21,28,15.35
-3,L' D2 L' F2 L' F' R' U B' D' L D' U2 B2 F2 L' R2 D' R L D' B U2 F L2,U' D2 R F2 B2 D R' B R2 U' F' U' R2 L2 D' F2 L2 U' L2 U R2,True,2.171,1,21,31,15.35
-4,R' U F R2 U D R' L2 F' B D2 U2 L' D L' F U' D' R2 F2 L' D' L' U D,R' D F' L F L U' B' R' F' B D B2 U B2 L2 U' D B2,True,1.718,1,19,23,15.34
-,,,100.00%,2.065,1.8,20.6,28.6,15.35
