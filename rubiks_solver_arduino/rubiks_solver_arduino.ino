@@ -1,14 +1,5 @@
 #include <Arduino.h>
 
-//#include <Streaming.h>
-//#include <Vector.h>
-
-// pulse = High -> Low
-// 1 pulse = 1.8 degrees
-
-// define pins numbers
-//const int enablePin = 13;  // motor drivers enable pin
-
 //                 motors:     0   1   2   3   4   5
 const int motorStepPins[6] = { 2,  4,  6,  8, 10, 12 };
 const int motorDirPins[6] =  { 3,  5,  7,  9, 11, 13 };
