@@ -5,7 +5,9 @@
 An autonomous robot that scans, solves, and physically executes a solution to a scrambled 3×3×3 Rubik's Cube — with an average solve time of **2.13 seconds**, faster than the current human world record (2.76s).
 
 Final Year Project — BEng (Hons) Electrical and Electronic Engineering (TU821), Technological University Dublin
+
 **Author:** Peter Myler · **Supervisor:** Frank Duignan · May 2026
+
 The project achieved a score of 86% and student graduated with a 1st Class Honours (3.6 GPA).
 
 **[Watch the demo video](https://youtu.be/nHWHOQfeOHc)**
