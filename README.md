@@ -1,11 +1,11 @@
-# 🤖 Robot Rubik's Cube Solver
+ # Robot Rubik's Cube Solver
 
 An autonomous robot that scans, solves, and physically executes a solution to a scrambled 3×3×3 Rubik's Cube — with an average solve time of **2.13 seconds**, faster than the current human world record (2.76s).
 
 Final Year Project — BEng (Hons) Electrical and Electronic Engineering (TU821), Technological University Dublin
 **Author:** Peter Myler · **Supervisor:** Frank Duignan · May 2026
 
-📺 **[Watch the demo video](https://youtu.be/nHWHOQfeOHc)**
+**[Watch the demo video](https://youtu.be/nHWHOQfeOHc)**
 
 ---
 
@@ -181,16 +181,3 @@ Motor execution accounts for ~90% of total solve time, with colour detection and
 
 Full details in [Section 7.3 of the report](./FYP_Report.pdf).
 
----
-
-## Acknowledgements
-
-- [H. Kociemba — RubiksCube-TwophaseSolver](https://github.com/hkociemba/RubiksCube-TwophaseSolver) (GPL-3.0)
-- [T. Rinca — magiccube](https://github.com/trincaog/magiccube)
-- [koma52 — cubescrambler](https://github.com/koma52/cubescrambler)
-- [OpenCV](https://github.com/opencv/opencv-python), [CustomTkinter](https://customtkinter.tomschimansky.com), [pyserial](https://github.com/pyserial/pyserial)
-- Project supervisor: Frank Duignan, TU Dublin
-
-## License
-
-This project uses [RubiksCube-TwophaseSolver](https://github.com/hkociemba/RubiksCube-TwophaseSolver), licensed under **GPL-3.0**, which requires derivative works to be distributed under the same licence. See [`LICENSE`](./LICENSE) for the licence covering this repository.
