@@ -2,7 +2,7 @@
  
 ![Completed robot assembly](images/full_setup.jpg)
 
-An autonomous robot that scans, solves, and physically executes a solution to a scrambled 3×3×3 Rubik's Cube — with an average solve time of **2.13 seconds**, faster than the current human world record (2.76s).
+An autonomous robot that scans, solves, and physically executes a solution to a scrambled 3×3×3 Rubik's Cube, with an average solve time of **2.13 seconds**, faster than the current human world record (2.76s).
 
 Final Year Project for BEng (Hons) Electrical and Electronic Engineering (TU821), Technological University Dublin
 
@@ -16,7 +16,7 @@ The project achieved a score of 86% and the student graduated with a 1st Class H
 
 ## Overview
 
-Place a scrambled cube in the robot, press one button, and it's solved — no other input required. The system combines:
+Place a scrambled cube in the robot, press one button, and it's solved, meaning no other input required. The system combines:
 
 - A custom 3D-printed frame with **six NEMA 17 stepper motors**, one per cube face
 - **Two USB webcams** for full cube-state capture via HSV colour detection
