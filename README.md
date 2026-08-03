@@ -41,8 +41,6 @@ Place a scrambled cube in the robot, press one button, and it's solved — no ot
 - [Results](#results)
 - [Limitations](#limitations)
 - [Future Work](#future-work)
-- [Acknowledgements](#acknowledgements)
-- [License](#license)
 
 ---
 
@@ -88,13 +86,13 @@ Full bill of materials is in the [report, Appendix C](./FYP_Report.pdf).
 ## Repository Structure
 
 ```
-├── arduino/              # Arduino Nano firmware (step/direction motor control)
+├── rubiks_solver_arduino/ # Arduino Nano firmware (step/direction motor control)
 ├── python/
-│   ├── GUI.py             # Main application — UI, camera feeds, solve control
-│   ├── Camera.py          # Camera capture + HSV colour classification
+│   ├── GUI.py              # Main application — UI, camera feeds, solve control
+│   ├── Camera.py           # Camera capture + HSV colour classification
 │   ├── Cube.py             # Cubestring construction, solver integration, serial comms
 │   └── cube_data.json      # Camera IDs, motor speed/delay, facelet quadrilateral coords
-├── cad/                   # Fusion 360 models / STL files for 3D-printed parts
+├── cad/                   # Fusion 360 models
 ├── test_data/             # Automated test run results (CSV)
 └── FYP_Report.pdf         # Full project report
 ```
