@@ -49,13 +49,13 @@ Place a scrambled cube in the robot, press one button, and it's solved — no ot
 ## How It Works
 
 ```
-Host PC (Python)                 Arduino Nano                 Mechanical Frame
-┌─────────────────────┐   USB    ┌────────────────┐   Step/Dir  ┌──────────────────┐
-│ GUI / control        │ serial  │ Firmware:       │   signals   │ 6× TMC2208        │
-│ Camera capture (x2)  │ ◄─────► │  parses moves,  │ ──────────► │ drivers → 6×      │
-│ HSV colour detection │         │  drives motors  │             │ NEMA 17 motors    │
-│ Kociemba solver       │         │  via TMC2208s   │             │ (one per face)     │
-└─────────────────────┘         └────────────────┘             └──────────────────┘
+    Host PC (Python)                 Arduino Nano                  Mechanical Frame
+┌──────────────────────┐  USB    ┌─────────────────┐   Step/Dir  ┌──────────────────┐
+│ GUI / control        │ serial  │ Firmware:       │   signals   │ 6× TMC2208       │
+│ Camera capture (x2)  │ ◄─────► │  parses moves,  │ ──────────► │ drivers → 6×     │
+│ HSV colour detection │         │  drives motors  │             │ NEMA 17 motors   │
+│ Kociemba solver      │         │  via TMC2208s   │             │ (one per face)   │
+└──────────────────────┘         └─────────────────┘             └──────────────────┘
 ```
 
 1. **Scan** — Two webcams positioned at opposite corners of the frame capture all six faces. Facelet regions are sampled as HSV medians and classified by hue (with saturation/value tie-breaking for red/orange and yellow/green).
