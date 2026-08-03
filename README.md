@@ -1,4 +1,4 @@
-### Robot Rubik's Cube Solver
+## Robot Rubik's Cube Solver
 
-# Video link:
+### Video link:
 https://youtu.be/nHWHOQfeOHc
